@@ -1,92 +1,152 @@
-import express, { NextFunction, Request, Response } from "express";
-import { AppDataSource } from "./data-source";
-import { WalletController } from "./controller/WalletController";
+import "reflect-metadata"
+import { AppDataSource } from "./data-source"
+import express, { NextFunction, Request, Response } from 'express';
 import { UserController } from "./controller/UserController";
+import { UserDTO } from "./dto/UserDTO";
+import { CurrencyController } from "./controller/CurrencyController";
+import { CurrencyDTO } from "./dto/CurrencyDTO";
+import { WalletController } from "./controller/WalletController";
+import { WalletDTO } from "./dto/WalletDTO";
+import { WalletTransactionController} from "./controller/TransactionController";
+import { TransactionDTO } from "./dto/TransactionDTO";
 import { SessionController } from "./controller/SessionController";
-import {
-  AuthenticatedRequest,
-  AuthenticationMiddleware,
-} from "./middleware/AuthenticationMiddleware";
+import { AuthenticatedRequest, AuthenticationMiddleware, } from "./middleware/AuthenticationMiddleware";
 import { BaseHttpException } from "./exceptions/BaseHttpException";
-import RouteExecutor from "./routes/RouteExecutor";
 
+const asyncHandler = require('express-async-handler')
 const SERVER_PORT = 3000;
 const server = express();
 server.use(express.json());
 
-server.post(
-  "/login",
-  (request: Request, response: Response, next: NextFunction) =>
-    RouteExecutor(
-      request,
-      response,
-      next,
-      async (request: Request, response: Response) => {
-        const sessionController = new SessionController();
-        const token = await sessionController.login(
-          request.body.email,
-          request.body.password
-        );
-        return response.status(200).json({
-          token,
-        });
-      }
-    )
-);
+server.get("", (request: Request, response: Response) => {
+  return response.send("O servidor está funcionando");
+});
 
-server.post("/user", async (request: Request, response: Response) => {
-  const userController = new UserController();
-  try {
-    const user = await userController.createUser(
-      request.body.name,
+server.post("/login", asyncHandler(async (request: Request, response: Response, next: NextFunction) => {
+  const sessionController = new SessionController();
+    const token = await sessionController.login(
       request.body.email,
       request.body.password
     );
-    return response.status(201).json(user);
-  } catch (e) {
-    return response.status(400).json({
-      error: e.message,
+    return response.status(200).json({
+      token,
+  })
+}));
+
+server.post("/users", asyncHandler(async (request: Request, response: Response, next: NextFunction) => {
+    const userController = new UserController();
+    const newUser = await userController.createUser(new UserDTO(
+      null,
+      request.body.name,
+      request.body.document,
+      request.body.email,
+      request.body.password
+    ));
+    
+    return response.status(201).json(newUser);
+}));
+
+server.use(new AuthenticationMiddleware().validateAuthentication);
+
+server.get("/users", async (request: Request, response: Response) => {
+  const userController = new UserController();
+  return response.json(await userController.getUsers());
+});
+
+server.get("/currencys", async (request: Request, response: Response) => {
+  const currencyController = new CurrencyController();
+  return response.json(await currencyController.getCurrencys());
+});
+
+server.post("/currency", async (request: Request, response: Response) => {
+  const currencyController = new CurrencyController();
+  const newCurrency = await currencyController.createCurrency(new CurrencyDTO(
+    null,
+    request.body.name,
+    request.body.acronym,
+  ));
+
+  return response.status(201).json(newCurrency);
+});
+
+server.get("/wallets", async (request: Request, response: Response) => {
+  const walletController = new WalletController();
+  return response.json(await walletController.getWallets());
+});
+
+server.post("/wallet", async (request: Request, response: Response) => {
+  const walletController = new WalletController();
+  const newWallet = await walletController.createWallet(new WalletDTO(
+    null,
+    request.body.name,
+    request.body.user,
+    request.body.currency
+  ));
+
+  return response.status(201).json(newWallet);
+});
+
+server.post("/wallet/transaction", async (request: Request, response: Response) => {
+    const walletTransactionController = new WalletTransactionController();
+    const transaction = await walletTransactionController.createTransaction(new TransactionDTO(
+      null,
+      request.body.amount,
+      null,
+      request.body.isCredit,
+      request.body.currency,
+      request.body.wallet,
+      new Date()
+    ));
+
+    return response.status(201).json(transaction);
+});
+
+server.get("/wallet/statement", async (request: Request, response: Response) => {
+  try {
+    const token = request.headers.authorization?.split(" ")[1];
+    const sessionController = new SessionController();
+    let userId = sessionController.verifyToken(token).userId;    
+    const walletTransactionController = new WalletTransactionController();
+    const statement = await walletTransactionController.getStatementByUser(userId);
+    return response.status(200).json(statement);
+  } catch (error) {
+    return response.status(401).json({
+      error: error.message,
     });
   }
 });
 
-server.use(new AuthenticationMiddleware().validateAuthentication);
-
-server.post(
-  "/wallet/transaction",
-  async (request: AuthenticatedRequest, response: Response) => {
-    const userId = request.userId;
-
-    const walletController = new WalletController();
-    const transaction = await walletController.createTransaction(
-      request.body.currency,
-      request.body.amount,
-      request.body.isCredit,
-      userId
-    );
-    return response.status(201).json(transaction);
-  }
-);
-
-server.get(
-  "/wallet/statement",
-  async (request: AuthenticatedRequest, response: Response) => {
-    const userId = request.userId;
-    const walletController = new WalletController();
-    const statement = await walletController.getStatement(userId);
+server.get("/wallet/statement/currency/:currencyId", async (request: Request, response: Response) => {
+  try {
+    const currencyId = Number(request.params.currencyId);
+    const token = request.headers.authorization?.split(" ")[1];
+    const sessionController = new SessionController();
+    let userId = sessionController.verifyToken(token).userId;    
+    const walletTransactionController = new WalletTransactionController();
+    const statement = await walletTransactionController.getStatementByUserAndCurrency(userId,currencyId);
     return response.status(200).json(statement);
+  } catch (error) {
+    return response.status(401).json({
+      error: error.message,
+    });
   }
-);
+});
 
-server.get(
-  "/wallet/amount",
-  async (request: AuthenticatedRequest, response: Response) => {
-    const userId = request.userId;
-    const walletController = new WalletController();
-    const amoutBRL = await walletController.getAmount(userId);
-    return response.status(200).json(amoutBRL);
+server.get("/wallet/statement/inCurrency/:currencyId", async (request: Request, response: Response) => {
+  try {
+    const currencyId = Number(request.params.currencyId);
+    const token = request.headers.authorization?.split(" ")[1];
+    const sessionController = new SessionController();
+    let userId = sessionController.verifyToken(token).userId;    
+    const walletTransactionController = new WalletTransactionController();
+    const statement = await walletTransactionController.getStatementInCurrency(userId, currencyId);
+    return response.status(200).json(statement);
+  } catch (error) {
+    return response.status(401).json({
+      error: error.message,
+    });
   }
-);
+});
 
 server.use(
   (err: Error, request: Request, response: Response, next: NextFunction) => {
