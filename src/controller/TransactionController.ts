@@ -5,6 +5,10 @@ import axios from "axios";
 import { TransactionDTO } from "../dto/TransactionDTO";
 import { CurrencyDTO } from "../dto/CurrencyDTO";
 import { ConvertCurrencyException } from "../exceptions/ConvertCurrencyException";
+import { InsufficientFundsException } from "../exceptions/InsufficientFundsException";
+import { WalletDTO } from "../dto/WalletDTO";
+import { Wallet } from "../model/Wallet";
+import { log } from "console";
 
 type currencyQuote = {
   from: string,
@@ -81,7 +85,8 @@ export class WalletTransactionController {
     const statementList = await transactionRepository.find({
       select: {
         amount: true,
-        currency: { acronym: true }
+        isCredit: true,
+        currency: { id: true, acronym: true }
       },
       relations: {
         currency: true
@@ -96,25 +101,36 @@ export class WalletTransactionController {
     })
     const amountList = [];
     const currencyRepository = AppDataSource.getRepository(Currency);
-    const inCurrency = CurrencyDTO.fromModel(await currencyRepository.findOneBy({id : currencyId}))
+    const inCurrency = CurrencyDTO.fromModel(await currencyRepository.findOneBy({id : currencyId}))    
 
     for (let i = 0; i < statementList.length; i++) {
-      const statement = statementList[i];
-
-      let amountInCurrency = await convertCurrencys(statement.currency, inCurrency, statement.amount)
+      if(statementList[i].isCredit){
+        const statement = statementList[i];
+        
+        let amountInCurrency = await convertCurrencys(statement.currency, inCurrency, statement.amount)
       
-      amountList.push(amountInCurrency)
+        amountList.push(amountInCurrency)
+      }
+
+      if(!(statementList[i].isCredit)){
+        const statement = statementList[i];
+
+        let amountInCurrency = await convertCurrencys(statement.currency, inCurrency, statement.amount) * -1
+      
+        amountList.push(amountInCurrency)
+      }
     }
-
-
+    
     let statementInCurrency: WalletTransaction = {
       id: undefined,
       wallet: undefined,
       amountBRL: undefined,
       isCredit: undefined,
+      isRefunded: undefined,
       createdAt: undefined,
-      amount: amountList.reduce((a, b)=> a + b ),
-      currency: inCurrency
+      amount: amountList.reduce((a, b)=> a + b , 0),
+      currency: inCurrency,
+      refundedAt: undefined,
     }    
 
     return TransactionDTO.fromModelWithSum(statementInCurrency)
@@ -124,12 +140,33 @@ export class WalletTransactionController {
     try{
       const transactionRepository = AppDataSource.getRepository(WalletTransaction)
       const currencyRepository = AppDataSource.getRepository(Currency);
+      const walletRepository = AppDataSource.getRepository(Wallet);
       const fromCurrency = CurrencyDTO.fromModel(await currencyRepository.findOneBy({ acronym: "BRL" }));
+      const walletId: number = Number(transactionDTO.wallet)
+      const wallet = WalletDTO.fromModel(await walletRepository.findOne({ 
+        where: {id: walletId},
+        relations: {
+          user: true,
+          currency: true
+        }
+      }))            
+
       let amountBRL: number = await convertCurrencys(transactionDTO.currency,fromCurrency,transactionDTO.amount)
-      transactionDTO.amountBRL = amountBRL
+      transactionDTO.amountBRL = amountBRL          
+
+      if(!(transactionDTO.isCredit)){      
+
+        const statement: TransactionDTO = await this.getStatementInCurrency(wallet.user.id, wallet.currency.id)        
+
+        if(transactionDTO.amount > statement.amount){
+          throw new InsufficientFundsException()
+        }
+      }
+
       const newTransaction = transactionDTO.toModel()
       const savedTransaction = await transactionRepository.save(newTransaction)
       return savedTransaction
+
     }catch(error){
       return error.message
     }
@@ -140,7 +177,7 @@ async function convertCurrencys(FromCurrency: CurrencyDTO, ToCurrency: CurrencyD
   try {
     const currencyRepository = AppDataSource.getRepository(Currency);
     const fromCurrency = CurrencyDTO.fromModel(await currencyRepository.findOneBy({ id: FromCurrency.id }));
-    const toCurrency = CurrencyDTO.fromModel(await currencyRepository.findOneBy({ id: ToCurrency.id }));  
+    const toCurrency = CurrencyDTO.fromModel(await currencyRepository.findOneBy({ id: ToCurrency.id }));    
 
     const req = axios.create({
         baseURL: 'https://economia.awesomeapi.com.br/json/',

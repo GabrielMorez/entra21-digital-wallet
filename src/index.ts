@@ -10,7 +10,7 @@ import { WalletDTO } from "./dto/WalletDTO";
 import { WalletTransactionController} from "./controller/TransactionController";
 import { TransactionDTO } from "./dto/TransactionDTO";
 import { SessionController } from "./controller/SessionController";
-import { AuthenticatedRequest, AuthenticationMiddleware, } from "./middleware/AuthenticationMiddleware";
+import { AuthenticationMiddleware, } from "./middleware/AuthenticationMiddleware";
 import { BaseHttpException } from "./exceptions/BaseHttpException";
 
 const asyncHandler = require('express-async-handler')
@@ -93,12 +93,31 @@ server.post("/wallet/transaction", async (request: Request, response: Response) 
       request.body.amount,
       null,
       request.body.isCredit,
+      false,
       request.body.currency,
       request.body.wallet,
-      new Date()
+      new Date(),
+      null,
     ));
 
     return response.status(201).json(transaction);
+});
+
+server.post("/wallet/transaction/refund/:id", async (request: Request, response: Response) => {
+  const walletTransactionController = new WalletTransactionController();
+  const transaction = await walletTransactionController.createTransaction(new TransactionDTO(
+    null,
+    request.body.amount,
+    null,
+    true,
+    null,
+    request.body.currency,
+    request.body.wallet,
+    null,
+    new Date()
+  ));
+
+  return response.status(201).json(transaction);
 });
 
 server.get("/wallet/statement", async (request: Request, response: Response) => {

@@ -9,9 +9,11 @@ export class TransactionDTO {
         public amount: number,
         public amountBRL: number,
         public isCredit: boolean,
+        public isRefunded: boolean,
         public currency: CurrencyDTO,
         public wallet: WalletDTO,
         public createdAt: Date,
+        public refundedAt: Date,
     ){}
 
     static fromModel(transaction: WalletTransaction): TransactionDTO {
@@ -20,9 +22,11 @@ export class TransactionDTO {
             transaction.amount,
             transaction.amountBRL,
             transaction.isCredit,
+            transaction.isRefunded,
             transaction.currency,
             transaction.wallet,
-            transaction.createdAt
+            transaction.createdAt,
+            transaction.refundedAt,
         )
 
         return transactionDTO
@@ -35,7 +39,9 @@ export class TransactionDTO {
             transaction.amount,
             undefined,
             undefined,
+            undefined,
             transaction.currency,
+            undefined,
             undefined,
             undefined,
         )
@@ -49,9 +55,11 @@ export class TransactionDTO {
         newWalletTransaction.amount = this.amount,
         newWalletTransaction.amountBRL = this.amountBRL,
         newWalletTransaction.isCredit = this.isCredit,
+        newWalletTransaction.isRefunded = this.isRefunded,
         newWalletTransaction.currency = this.currency,
         newWalletTransaction.wallet = this.wallet,
         newWalletTransaction.createdAt = this.createdAt
+        newWalletTransaction.refundedAt = this.refundedAt
 
         return newWalletTransaction;
     }

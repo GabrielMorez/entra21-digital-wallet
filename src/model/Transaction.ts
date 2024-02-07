@@ -25,5 +25,13 @@ export class WalletTransaction {
   isCredit: boolean;
 
   @Column()
+  isRefunded: boolean;
+
+  @Column()
   createdAt: Date;
+
+  @Column({
+    nullable: true
+  })
+  refundedAt: Date;
 }
