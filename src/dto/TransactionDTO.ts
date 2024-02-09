@@ -22,13 +22,13 @@ export class TransactionDTO {
             transaction.amount,
             transaction.amountBRL,
             transaction.isCredit,
-            transaction.isRefunded,
-            transaction.currency,
-            transaction.wallet,
+            transaction.isRefunded,            
+            CurrencyDTO.fromModel(transaction.currency),
+            WalletDTO.fromModel(transaction.wallet),
             transaction.createdAt,
             transaction.refundedAt,
         )
-
+        
         return transactionDTO
     }
 
@@ -40,7 +40,7 @@ export class TransactionDTO {
             undefined,
             undefined,
             undefined,
-            transaction.currency,
+            CurrencyDTO.fromModel(transaction.currency),
             undefined,
             undefined,
             undefined,

@@ -48,17 +48,17 @@ server.post("/users", asyncHandler(async (request: Request, response: Response, 
 
 server.use(new AuthenticationMiddleware().validateAuthentication);
 
-server.get("/users", async (request: Request, response: Response) => {
+server.get("/users", asyncHandler(async (request: Request, response: Response, next: NextFunction) => {
   const userController = new UserController();
   return response.json(await userController.getUsers());
-});
+}));
 
-server.get("/currencys", async (request: Request, response: Response) => {
+server.get("/currencys", asyncHandler(async (request: Request, response: Response, next: NextFunction) => {
   const currencyController = new CurrencyController();
   return response.json(await currencyController.getCurrencys());
-});
+}));
 
-server.post("/currency", async (request: Request, response: Response) => {
+server.post("/currency", asyncHandler(async (request: Request, response: Response, next: NextFunction) => {
   const currencyController = new CurrencyController();
   const newCurrency = await currencyController.createCurrency(new CurrencyDTO(
     null,
@@ -67,14 +67,14 @@ server.post("/currency", async (request: Request, response: Response) => {
   ));
 
   return response.status(201).json(newCurrency);
-});
+}));
 
-server.get("/wallets", async (request: Request, response: Response) => {
+server.get("/wallets", asyncHandler(async (request: Request, response: Response, next: NextFunction) => {
   const walletController = new WalletController();
   return response.json(await walletController.getWallets());
-});
+}));
 
-server.post("/wallet", async (request: Request, response: Response) => {
+server.post("/wallet", asyncHandler(async (request: Request, response: Response, next: NextFunction) => {
   const walletController = new WalletController();
   const newWallet = await walletController.createWallet(new WalletDTO(
     null,
@@ -84,9 +84,9 @@ server.post("/wallet", async (request: Request, response: Response) => {
   ));
 
   return response.status(201).json(newWallet);
-});
+}));
 
-server.post("/wallet/transaction", async (request: Request, response: Response) => {
+server.post("/wallet/transaction", asyncHandler(async (request: Request, response: Response, next: NextFunction) => {
     const walletTransactionController = new WalletTransactionController();
     const transaction = await walletTransactionController.createTransaction(new TransactionDTO(
       null,
@@ -101,42 +101,27 @@ server.post("/wallet/transaction", async (request: Request, response: Response) 
     ));
 
     return response.status(201).json(transaction);
-});
+}));
 
-server.post("/wallet/transaction/refund/:id", async (request: Request, response: Response) => {
+server.put("/wallet/transaction/:id/refund", asyncHandler(async (request: Request, response: Response, next: NextFunction) => {
+  const transactionId: number = Number(request.params.id);
   const walletTransactionController = new WalletTransactionController();
-  const transaction = await walletTransactionController.createTransaction(new TransactionDTO(
-    null,
-    request.body.amount,
-    null,
-    true,
-    null,
-    request.body.currency,
-    request.body.wallet,
-    null,
-    new Date()
-  ));
+  const transactionRefunded = await walletTransactionController.refoundTransaction(transactionId);
 
-  return response.status(201).json(transaction);
-});
+  return response.json(transactionRefunded);
+}));
 
-server.get("/wallet/statement", async (request: Request, response: Response) => {
-  try {
+server.get("/wallet/statement", asyncHandler(async (request: Request, response: Response, next: NextFunction) => {
     const token = request.headers.authorization?.split(" ")[1];
     const sessionController = new SessionController();
-    let userId = sessionController.verifyToken(token).userId;    
+    let userId = sessionController.verifyToken(token).userId;
     const walletTransactionController = new WalletTransactionController();
     const statement = await walletTransactionController.getStatementByUser(userId);
+    
     return response.status(200).json(statement);
-  } catch (error) {
-    return response.status(401).json({
-      error: error.message,
-    });
-  }
-});
+}));
 
-server.get("/wallet/statement/currency/:currencyId", async (request: Request, response: Response) => {
-  try {
+server.get("/wallet/statement/currency/:currencyId", asyncHandler(async (request: Request, response: Response, next: NextFunction) => {
     const currencyId = Number(request.params.currencyId);
     const token = request.headers.authorization?.split(" ")[1];
     const sessionController = new SessionController();
@@ -144,15 +129,9 @@ server.get("/wallet/statement/currency/:currencyId", async (request: Request, re
     const walletTransactionController = new WalletTransactionController();
     const statement = await walletTransactionController.getStatementByUserAndCurrency(userId,currencyId);
     return response.status(200).json(statement);
-  } catch (error) {
-    return response.status(401).json({
-      error: error.message,
-    });
-  }
-});
+}));
 
-server.get("/wallet/statement/inCurrency/:currencyId", async (request: Request, response: Response) => {
-  try {
+server.get("/wallet/statement/inCurrency/:currencyId", asyncHandler(async (request: Request, response: Response, next: NextFunction) => {
     const currencyId = Number(request.params.currencyId);
     const token = request.headers.authorization?.split(" ")[1];
     const sessionController = new SessionController();
@@ -160,12 +139,7 @@ server.get("/wallet/statement/inCurrency/:currencyId", async (request: Request, 
     const walletTransactionController = new WalletTransactionController();
     const statement = await walletTransactionController.getStatementInCurrency(userId, currencyId);
     return response.status(200).json(statement);
-  } catch (error) {
-    return response.status(401).json({
-      error: error.message,
-    });
-  }
-});
+}));
 
 server.use(
   (err: Error, request: Request, response: Response, next: NextFunction) => {

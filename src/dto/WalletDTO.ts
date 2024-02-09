@@ -16,8 +16,8 @@ export class WalletDTO {
         const walletDTO = new WalletDTO(
             wallet.id,
             wallet.name,
-            wallet.user,
-            wallet.currency
+            UserDTO.fromModel(wallet.user),
+            CurrencyDTO.fromModel(wallet.currency)
         );
 
         return walletDTO;

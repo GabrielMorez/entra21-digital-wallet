@@ -1,6 +1,4 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, ManyToOne } from "typeorm"
-import { CurrencyDTO } from "../dto/CurrencyDTO";
-import { UserDTO } from "../dto/UserDTO";
 import { Currency } from "./Currency";
 import { User } from "./User";
 
@@ -14,9 +12,9 @@ export class Wallet {
     name: string;
     
     @ManyToOne(() => Currency, (currency) => currency)
-    currency: CurrencyDTO;
+    currency: Currency;
 
     @ManyToOne(() => User, (user) => user)
-    user: UserDTO;
+    user: User;
 }
 

@@ -1,6 +1,4 @@
 import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { CurrencyDTO } from "../dto/CurrencyDTO";
-import { WalletDTO } from "../dto/WalletDTO";
 import { Wallet } from "./Wallet";
 import { Currency } from "./Currency";
 
@@ -10,10 +8,10 @@ export class WalletTransaction {
   id: number;
 
   @ManyToOne(() => Currency, (currency) => currency)
-  currency: CurrencyDTO;
+  currency: Currency;
 
   @ManyToOne(() => Wallet, (wallet) => wallet)
-  wallet: WalletDTO;
+  wallet: Wallet;
 
   @Column({type: "numeric"})
   amount: number
